@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
+#include "init_stwin_sensors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +42,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c2;
+
 TIM_HandleTypeDef htim16;
 
 UART_HandleTypeDef huart2;
@@ -47,6 +51,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t uart_buf[50] = "";
 uint16_t uart_buf_len;
+double nb_trame=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -54,6 +59,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -93,11 +99,25 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM16_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   uart_buf_len = sprintf(uart_buf, "---- Demarrage de l'UART ----\r\n");
   HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 
+  if (init_stts751(&hi2c2) == 0)
+  {
+	  uart_buf_len = sprintf(uart_buf, "---- Init STTS751 OK\r\n");
+	  HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+  }
+  else
+  {
+	  uart_buf_len = sprintf(uart_buf, "---- Init STTS751 Failure\r\n");
+	  HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+	  Error_Handler();
+  }
+
   HAL_TIM_Base_Start_IT(&htim16); //Enable Timer 16 interrupt
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,12 +177,59 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.Timing = 0x307075B1;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
+
 }
 
 /**
@@ -423,14 +490,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(WIFI_RST_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : I2C2_SMBA_Pin I2C2_SDA_Pin I2C2_SDAF0_Pin */
-  GPIO_InitStruct.Pin = I2C2_SMBA_Pin|I2C2_SDA_Pin|I2C2_SDAF0_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-
   /*Configure GPIO pins : CS_WIFI_Pin C_EN_Pin CS_ADWB_Pin STSAFE_RESET_Pin
                            WIFI_BOOT0_Pin CS_DHC_Pin SEL3_4_Pin */
   GPIO_InitStruct.Pin = CS_WIFI_Pin|C_EN_Pin|CS_ADWB_Pin|STSAFE_RESET_Pin
@@ -579,9 +638,46 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim == &htim16)
 	{
-		uart_buf_len = sprintf(uart_buf, "Test timer\r\n");
+		nb_trame++;
+		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %lf\r\n", nb_trame);
 		HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+
+		uint8_t flag;
+	    stts751_flag_busy_get(&dev_ctx, &flag);
+	    if (flag)
+	    {
+	      // Read temperature data
+	      memset(data_raw_temperature.u8bit, 0, sizeof(int16_t));
+	      stts751_temperature_raw_get(&dev_ctx, &data_raw_temperature.i16bit);
+	      temperature_degC = stts751_from_lsb_to_celsius(data_raw_temperature.i16bit);
+	    }
+	    //If SSTS751 is busy, the last data is sent
+	    uart_buf_len = sprintf(uart_buf, "STTS751 : %.3f\r\n", temperature_degC);
+	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+
+	    uart_buf_len = sprintf(uart_buf, "End of trame\r\n\r\n");
+	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 	}
+}
+
+int32_t platform_write(void *handle, uint8_t reg, uint8_t *bufp,
+                              uint16_t len)
+{
+  if (handle == &hi2c2)
+  {
+    HAL_I2C_Mem_Write(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+  }
+  return 0;
+}
+
+int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
+                             uint16_t len)
+{
+  if (handle == &hi2c2)
+  {
+    HAL_I2C_Mem_Read(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+  }
+  return 0;
 }
 /* USER CODE END 4 */
 

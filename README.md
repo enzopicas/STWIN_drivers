@@ -1,5 +1,13 @@
 # STWIN_drivers
 This repo contain all sensors documentation and drivers for STWIN board, based on STM32.
+* Implemented sensors
+    * STTS 751
+* TODO
+    * SD card saving
+    * HTS222 (Humidity and Temperature)
+    * LPS22HH (Pressure)
+    * ISM330DHCX (6-Axis IMU)
+    * IIS2MDC (3D Magnetometer)
 
 ## Licence
 * Source code for sensors drivers is provided by [STMicroelectronics](https://github.com/STMicroelectronics/STMems_Standard_C_drivers) under [BSD 3-Clause License](https://github.com/STMicroelectronics/STMems_Standard_C_drivers/blob/master/LICENSE).
