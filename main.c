@@ -49,8 +49,6 @@ TIM_HandleTypeDef htim16;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t uart_buf[50] = "";
-uint16_t uart_buf_len;
 double nb_trame=0;
 /* USER CODE END PV */
 
@@ -101,18 +99,9 @@ int main(void)
   MX_TIM16_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-  uart_buf_len = sprintf(uart_buf, "---- Demarrage de l'UART ----\r\n");
-  HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 
-  if (init_stts751(&hi2c2) == 0)
+  if (init_sensors(&huart2, &hi2c2, &hi2c2) != 0)
   {
-	  uart_buf_len = sprintf(uart_buf, "---- Init STTS751 OK\r\n");
-	  HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
-  }
-  else
-  {
-	  uart_buf_len = sprintf(uart_buf, "---- Init STTS751 Failure\r\n");
-	  HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 	  Error_Handler();
   }
 
@@ -636,26 +625,56 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+	uint8_t uart_buf[500] = "";
+	uint8_t temp_buf[30] = "";
+	uint16_t uart_buf_len;
+
 	if (htim == &htim16)
 	{
 		nb_trame++;
-		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %lf\r\n", nb_trame);
-		HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %.0lf\r\n", nb_trame);
 
+		/*------------ STTS751 ------------*/
 		uint8_t flag;
-	    stts751_flag_busy_get(&dev_ctx, &flag);
+	    stts751_flag_busy_get(&stts751_dev_ctx, &flag);
 	    if (flag)
 	    {
 	      // Read temperature data
-	      memset(data_raw_temperature.u8bit, 0, sizeof(int16_t));
-	      stts751_temperature_raw_get(&dev_ctx, &data_raw_temperature.i16bit);
-	      temperature_degC = stts751_from_lsb_to_celsius(data_raw_temperature.i16bit);
+	      memset(stts751_data_raw_temperature.u8bit, 0, sizeof(int16_t));
+	      stts751_temperature_raw_get(&stts751_dev_ctx, &stts751_data_raw_temperature.i16bit);
+	      stts751_temperature_degC = stts751_from_lsb_to_celsius(stts751_data_raw_temperature.i16bit);
 	    }
-	    //If SSTS751 is busy, the last data is sent
-	    uart_buf_len = sprintf(uart_buf, "STTS751 : %.3f\r\n", temperature_degC);
-	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
+	    uart_buf_len += sprintf(temp_buf, "STTS751 : %.3f\r\n", stts751_temperature_degC);
+	    strcat(uart_buf, temp_buf);
 
-	    uart_buf_len = sprintf(uart_buf, "End of trame\r\n\r\n");
+	    /*------------ LPS22HH ------------*/
+	    /*
+	    lps22hh_read_reg(&lps22hh_dev_ctx, LPS22HH_STATUS, (uint8_t *)&lps22hh_reg, 1);
+	    if (lps22hh_reg.status.p_da)
+	    {
+	      // Read pressure data
+	      memset(&lps22hh_data_raw_pressure, 0x00, sizeof(uint32_t));
+	      lps22hh_pressure_raw_get(&lps22hh_dev_ctx, &lps22hh_data_raw_pressure);
+	      lps22hh_pressure_hPa = lps22hh_from_lsb_to_hpa(lps22hh_data_raw_pressure);
+	    }
+
+	    if (lps22hh_reg.status.t_da)
+	    {
+	      // Read temperature data
+	      memset(&lps22hh_data_raw_temperature, 0x00, sizeof(int16_t));
+	      lps22hh_temperature_raw_get(&lps22hh_dev_ctx, &lps22hh_data_raw_temperature);
+	      lps22hh_temperature_degC = lps22hh_from_lsb_to_celsius(lps22hh_data_raw_temperature);
+	    }
+
+	    uart_buf_len += sprintf(temp_buf, "LPS22HH : Pressure : %f\r\n", lps22hh_pressure_hPa);
+	    strcat(uart_buf, temp_buf);
+	    uart_buf_len += sprintf(temp_buf, "LPS22HH : Temperature : %f\r\n", lps22hh_temperature_degC);
+	    strcat(uart_buf, temp_buf);
+		*/
+
+	    /* Transmitt to UART */
+	    uart_buf_len += sprintf(temp_buf, "End of trame\r\n\r\n");
+	    strcat(uart_buf, temp_buf);
 	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 	}
 }
