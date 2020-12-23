@@ -1,7 +1,7 @@
 #include "init_stwin_sensors.h"
 
 /*---------- GLOBAL ----------*/
-int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus)
+int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus, I2C_HandleTypeDef *hts221_bus)
 {
 	uint16_t uart_buf_len;
 	uint8_t uart_buf[500] = "";
@@ -37,6 +37,19 @@ int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I
 	  return -2;
 	}
 	*/
+
+	/*-------- HTS221 --------*/
+	if (init_hts221(hts221_bus) == 0)
+	{
+	  uart_buf_len = sprintf(uart_buf, "---- Init HTS221 OK\r\n");
+	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
+	}
+	else
+	{
+	  uart_buf_len = sprintf(uart_buf, "---- Init HTS221 Failure\r\n");
+	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
+	  return -2;
+	}
 
 	return 0;
 }
@@ -98,4 +111,43 @@ int init_lps22hh(I2C_HandleTypeDef *lps22hh_bus)
 	lps22hh_data_rate_set(&lps22hh_dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
 
 	return 0;
+}
+
+/*---------- HTS221 ----------*/
+int init_hts221(I2C_HandleTypeDef *hts221_bus)
+{
+	hts221_dev_ctx.write_reg = platform_write;
+	hts221_dev_ctx.read_reg = platform_read;
+	hts221_dev_ctx.handle = hts221_bus;
+
+	hts221_whoamI = 0;
+	hts221_device_id_get(&hts221_dev_ctx, &hts221_whoamI);
+	if (hts221_whoamI != HTS221_ID)
+	{
+		return -1;
+	}
+
+	hts221_hum_adc_point_0_get(&hts221_dev_ctx, &hts221_lin_hum.x0);
+	hts221_hum_rh_point_0_get(&hts221_dev_ctx, &hts221_lin_hum.y0);
+	hts221_hum_adc_point_1_get(&hts221_dev_ctx, &hts221_lin_hum.x1);
+	hts221_hum_rh_point_1_get(&hts221_dev_ctx, &hts221_lin_hum.y1);
+	/* Read temperature calibration coefficient */
+	hts221_temp_adc_point_0_get(&hts221_dev_ctx, &hts221_lin_temp.x0);
+	hts221_temp_deg_point_0_get(&hts221_dev_ctx, &hts221_lin_temp.y0);
+	hts221_temp_adc_point_1_get(&hts221_dev_ctx, &hts221_lin_temp.x1);
+	hts221_temp_deg_point_1_get(&hts221_dev_ctx, &hts221_lin_temp.y1);
+	/* Enable Block Data Update */
+	hts221_block_data_update_set(&hts221_dev_ctx, PROPERTY_ENABLE);
+	/* Set Output Data Rate */
+	hts221_data_rate_set(&hts221_dev_ctx, HTS221_ODR_7Hz);
+	/* Device power on */
+	hts221_power_on_set(&hts221_dev_ctx, PROPERTY_ENABLE);
+
+	return 0;
+}
+
+float linear_interpolation(lin_t *lin, int16_t x)
+{
+	return ((lin->y1 - lin->y0) * x + ((lin->x1 * lin->y0) -
+	           (lin->x0 * lin->y1))) / (lin->x1 - lin->x0);
 }

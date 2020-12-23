@@ -4,7 +4,7 @@
 /*---------- GLOBAL ----------*/
 #include "main.h"
 
-int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus);
+int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus, I2C_HandleTypeDef *hts221_bus);
 
 /*---------- STTS 751 ----------*/
 #include "stts751_reg.h"
@@ -34,5 +34,28 @@ stmdev_ctx_t lps22hh_dev_ctx;
 lps22hh_reg_t lps22hh_reg;
 
 int init_lps22hh(I2C_HandleTypeDef *lps22hh_bus);
+
+/*---------- HTS221 ----------*/
+#include "hts221_reg.h"
+
+int16_t hts221_data_raw_humidity;
+int16_t hts221_data_raw_temperature;
+float hts221_humidity_perc;
+float hts221_temperature_degC;
+uint8_t hts221_whoamI;
+stmdev_ctx_t hts221_dev_ctx;
+hts221_reg_t hts221_reg;
+
+typedef struct {
+  float x0;
+  float y0;
+  float x1;
+  float y1;
+} lin_t;
+lin_t hts221_lin_hum;
+lin_t hts221_lin_temp;
+
+float linear_interpolation(lin_t *lin, int16_t x);
+int init_hts221(I2C_HandleTypeDef *hts221_bus);
 
 #endif

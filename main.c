@@ -100,9 +100,9 @@ int main(void)
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
-  if (init_sensors(&huart2, &hi2c2, &hi2c2) != 0)
+  if (init_sensors(&huart2, &hi2c2, &hi2c2, &hi2c2) != 0)
   {
-	  Error_Handler();
+	  //Error_Handler();
   }
 
   HAL_TIM_Base_Start_IT(&htim16); //Enable Timer 16 interrupt
@@ -625,8 +625,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	uint8_t uart_buf[500] = "";
-	uint8_t temp_buf[30] = "";
+	uint8_t uart_buf[2000] = "";
+	uint8_t temp_buf[150] = "";
 	uint16_t uart_buf_len;
 
 	if (htim == &htim16)
@@ -634,7 +634,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		nb_trame++;
 		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %.0lf\r\n", nb_trame);
 
-		/*------------ STTS751 ------------*/
+/*------------ STTS751 ------------*/
 		uint8_t flag;
 	    stts751_flag_busy_get(&stts751_dev_ctx, &flag);
 	    if (flag)
@@ -647,7 +647,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    uart_buf_len += sprintf(temp_buf, "STTS751 : %.3f\r\n", stts751_temperature_degC);
 	    strcat(uart_buf, temp_buf);
 
-	    /*------------ LPS22HH ------------*/
+/*------------ LPS22HH ------------*/
 	    /*
 	    lps22hh_read_reg(&lps22hh_dev_ctx, LPS22HH_STATUS, (uint8_t *)&lps22hh_reg, 1);
 	    if (lps22hh_reg.status.p_da)
@@ -672,7 +672,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    strcat(uart_buf, temp_buf);
 		*/
 
-	    /* Transmitt to UART */
+/*------------ HTS221 ------------*/
+/*
+	    hts221_status_get(&hts221_dev_ctx, &hts221_reg.status_reg);
+	    if (hts221_reg.status_reg.h_da)
+	    {
+	      // Read humidity data
+	      memset(&hts221_data_raw_humidity, 0x00, sizeof(int16_t));
+	      hts221_humidity_raw_get(&hts221_dev_ctx, &hts221_data_raw_humidity);
+	      hts221_humidity_perc = linear_interpolation(&hts221_lin_hum, hts221_data_raw_humidity);
+	      if (hts221_humidity_perc < 0) {
+	    	  hts221_humidity_perc = 0;
+	      }
+	      if (hts221_humidity_perc > 100) {
+	    	  hts221_humidity_perc = 100;
+	      }
+	    }
+
+	    if (hts221_reg.status_reg.t_da)
+	    {
+	      // Read temperature data
+	      memset(&hts221_data_raw_temperature, 0x00, sizeof(int16_t));
+	      hts221_temperature_raw_get(&hts221_dev_ctx, &hts221_data_raw_temperature);
+	      hts221_temperature_degC = linear_interpolation(&hts221_lin_temp, hts221_data_raw_temperature);
+	    }
+
+	    uart_buf_len += sprintf(temp_buf, "HTS221 : Humidity : %f\r\n", hts221_humidity_perc);
+	    strcat(uart_buf, temp_buf);
+	    uart_buf_len += sprintf(temp_buf, "HTS221 : Temperature : %f\r\n", hts221_temperature_degC);
+	    strcat(uart_buf, temp_buf);
+*/
+
+/* Transmitt to UART */
 	    uart_buf_len += sprintf(temp_buf, "End of trame\r\n\r\n");
 	    strcat(uart_buf, temp_buf);
 	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
