@@ -1,7 +1,8 @@
 #include "init_stwin_sensors.h"
 
 /*---------- GLOBAL ----------*/
-int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus, I2C_HandleTypeDef *hts221_bus)
+int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus,
+		I2C_HandleTypeDef *hts221_bus, SPI_HandleTypeDef *ism330_bus)
 {
 	uint16_t uart_buf_len;
 	uint8_t uart_buf[500] = "";
@@ -11,6 +12,7 @@ int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I
 	HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
 
 	/*-------- STTS751 --------*/
+	/*
 	if (init_stts751(stts751_bus) == 0)
 	{
 	  uart_buf_len = sprintf(uart_buf, "---- Init STTS751 OK\r\n");
@@ -22,6 +24,7 @@ int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I
 	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
 	  return -1;
 	}
+	*/
 
 	/*-------- LPS22HH --------*/
 	/*
@@ -39,6 +42,7 @@ int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I
 	*/
 
 	/*-------- HTS221 --------*/
+
 	if (init_hts221(hts221_bus) == 0)
 	{
 	  uart_buf_len = sprintf(uart_buf, "---- Init HTS221 OK\r\n");
@@ -48,8 +52,24 @@ int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I
 	{
 	  uart_buf_len = sprintf(uart_buf, "---- Init HTS221 Failure\r\n");
 	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
-	  return -2;
+	  return -3;
 	}
+
+
+	/*-------- ISM330 --------*/
+	/*
+	if (init_ism330(ism330_bus) == 0)
+	{
+	  uart_buf_len = sprintf(uart_buf, "---- Init ISM330 OK\r\n");
+	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
+	}
+	else
+	{
+	  uart_buf_len = sprintf(uart_buf, "---- Init ISM330 Failure\r\n");
+	  HAL_UART_Transmit(UART_bus, uart_buf, uart_buf_len, 100);
+	  return -4;
+	}
+	*/
 
 	return 0;
 }
@@ -150,4 +170,38 @@ float linear_interpolation(lin_t *lin, int16_t x)
 {
 	return ((lin->y1 - lin->y0) * x + ((lin->x1 * lin->y0) -
 	           (lin->x0 * lin->y1))) / (lin->x1 - lin->x0);
+}
+
+/*---------- ISM330 ----------*/
+int init_ism330(SPI_HandleTypeDef *ism330_bus)
+{
+	ism330_dev_ctx.write_reg = platform_write;
+	ism330_dev_ctx.read_reg = platform_read;
+	ism330_dev_ctx.handle = &ism330_bus;
+
+	ism330dhcx_device_id_get(&ism330_dev_ctx, &ism330_whoamI);
+	if (ism330_whoamI != ISM330DHCX_ID)
+	{
+		return -1;
+	}
+
+	ism330dhcx_reset_set(&ism330_dev_ctx, PROPERTY_ENABLE);
+	do
+	{
+		ism330dhcx_reset_get(&ism330_dev_ctx, &ism330_rst);
+	} while (ism330_rst);
+
+	/* Enable Block Data Update */
+	ism330dhcx_block_data_update_set(&ism330_dev_ctx, PROPERTY_ENABLE);
+	/* Set Output Data Rate */
+	ism330dhcx_xl_data_rate_set(&ism330_dev_ctx, ISM330DHCX_XL_ODR_12Hz5);
+	ism330dhcx_gy_data_rate_set(&ism330_dev_ctx, ISM330DHCX_GY_ODR_12Hz5);
+	/* Set full scale */
+	ism330dhcx_xl_full_scale_set(&ism330_dev_ctx, ISM330DHCX_2g);
+	ism330dhcx_gy_full_scale_set(&ism330_dev_ctx, ISM330DHCX_2000dps);
+	/* Configure filtering chain(No aux interface) */
+	ism330dhcx_xl_hp_path_on_out_set(&ism330_dev_ctx, ISM330DHCX_LP_ODR_DIV_100);
+	ism330dhcx_xl_filter_lp2_set(&ism330_dev_ctx, PROPERTY_ENABLE);
+
+	return 0;
 }

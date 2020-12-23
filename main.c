@@ -44,6 +44,8 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
+SPI_HandleTypeDef hspi3;
+
 TIM_HandleTypeDef htim16;
 
 UART_HandleTypeDef huart2;
@@ -58,6 +60,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM16_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_SPI3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -98,9 +101,10 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM16_Init();
   MX_I2C2_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
-  if (init_sensors(&huart2, &hi2c2, &hi2c2, &hi2c2) != 0)
+  if (init_sensors(&huart2, &hi2c2, &hi2c2, &hi2c2, &hspi3) != 0)
   {
 	  //Error_Handler();
   }
@@ -218,6 +222,46 @@ static void MX_I2C2_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
+  * @brief SPI3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI3_Init(void)
+{
+
+  /* USER CODE BEGIN SPI3_Init 0 */
+
+  /* USER CODE END SPI3_Init 0 */
+
+  /* USER CODE BEGIN SPI3_Init 1 */
+
+  /* USER CODE END SPI3_Init 1 */
+  /* SPI3 parameter configuration*/
+  hspi3.Instance = SPI3;
+  hspi3.Init.Mode = SPI_MODE_MASTER;
+  hspi3.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi3.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi3.Init.NSS = SPI_NSS_SOFT;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi3.Init.CRCPolynomial = 7;
+  hspi3.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi3.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI3_Init 2 */
+
+  /* USER CODE END SPI3_Init 2 */
 
 }
 
@@ -360,14 +404,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BOOT0_PE0H3_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SPI3_MISO_Pin SPI3_MOSI_Pin SPI3_CLK_Pin */
-  GPIO_InitStruct.Pin = SPI3_MISO_Pin|SPI3_MOSI_Pin|SPI3_CLK_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SDMMC_D3_Pin SDMMC_D2_Pin SDMMC_D1_Pin SDMMC_CK_Pin
                            SDMMC_D0_Pin */
@@ -635,6 +671,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %.0lf\r\n", nb_trame);
 
 /*------------ STTS751 ------------*/
+/*
 		uint8_t flag;
 	    stts751_flag_busy_get(&stts751_dev_ctx, &flag);
 	    if (flag)
@@ -646,9 +683,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    }
 	    uart_buf_len += sprintf(temp_buf, "STTS751 : %.3f\r\n", stts751_temperature_degC);
 	    strcat(uart_buf, temp_buf);
+*/
 
 /*------------ LPS22HH ------------*/
-	    /*
+/*
 	    lps22hh_read_reg(&lps22hh_dev_ctx, LPS22HH_STATUS, (uint8_t *)&lps22hh_reg, 1);
 	    if (lps22hh_reg.status.p_da)
 	    {
@@ -670,10 +708,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    strcat(uart_buf, temp_buf);
 	    uart_buf_len += sprintf(temp_buf, "LPS22HH : Temperature : %f\r\n", lps22hh_temperature_degC);
 	    strcat(uart_buf, temp_buf);
-		*/
+*/
 
 /*------------ HTS221 ------------*/
-/*
+
 	    hts221_status_get(&hts221_dev_ctx, &hts221_reg.status_reg);
 	    if (hts221_reg.status_reg.h_da)
 	    {
@@ -701,7 +739,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    strcat(uart_buf, temp_buf);
 	    uart_buf_len += sprintf(temp_buf, "HTS221 : Temperature : %f\r\n", hts221_temperature_degC);
 	    strcat(uart_buf, temp_buf);
-*/
+
 
 /* Transmitt to UART */
 	    uart_buf_len += sprintf(temp_buf, "End of trame\r\n\r\n");
@@ -715,7 +753,10 @@ int32_t platform_write(void *handle, uint8_t reg, uint8_t *bufp,
 {
   if (handle == &hi2c2)
   {
-    HAL_I2C_Mem_Write(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+    //HAL_I2C_Mem_Write(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+	  //HAL_I2C_Mem_Write(handle, LPS22HH_I2C_ADD_H, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+	  reg |= 0x80;
+	  HAL_I2C_Mem_Write(handle, HTS221_I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
   }
   return 0;
 }
@@ -725,7 +766,10 @@ int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
 {
   if (handle == &hi2c2)
   {
-    HAL_I2C_Mem_Read(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+    //HAL_I2C_Mem_Read(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+	  //HAL_I2C_Mem_Read(handle, LPS22HH_I2C_ADD_H, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
+	  reg |= 0x80;
+	  HAL_I2C_Mem_Read(handle, HTS221_I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
   }
   return 0;
 }

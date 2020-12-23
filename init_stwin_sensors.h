@@ -4,7 +4,8 @@
 /*---------- GLOBAL ----------*/
 #include "main.h"
 
-int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus, I2C_HandleTypeDef *hts221_bus);
+int init_sensors(UART_HandleTypeDef *UART_bus, I2C_HandleTypeDef *stts751_bus, I2C_HandleTypeDef *lps22hh_bus,
+		I2C_HandleTypeDef *hts221_bus, SPI_HandleTypeDef *ism330_bus);
 
 /*---------- STTS 751 ----------*/
 #include "stts751_reg.h"
@@ -57,5 +58,21 @@ lin_t hts221_lin_temp;
 
 float linear_interpolation(lin_t *lin, int16_t x);
 int init_hts221(I2C_HandleTypeDef *hts221_bus);
+
+/*---------- ISM330 ----------*/
+#include "ism330dhcx_reg.h"
+
+int16_t ism330_data_raw_acceleration[3];
+int16_t ism330_data_raw_angular_rate[3];
+int16_t ism330_data_raw_temperature;
+float ism330_acceleration_mg[3];
+float ism330_angular_rate_mdps[3];
+float ism330_temperature_degC;
+uint8_t ism330_whoamI;
+uint8_t ism330_rst;
+stmdev_ctx_t ism330_dev_ctx;
+uint8_t ism330_reg;
+
+int init_ism330(SPI_HandleTypeDef *ism330_bus);
 
 #endif
