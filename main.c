@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2020 enzopicas.
+  * <h2><center>&copy; Copyright (c) 2021 enzopicas.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under BSD 3-Clause license,
@@ -106,7 +106,7 @@ int main(void)
 
   if (init_sensors(&huart2, &hi2c2, &hi2c2, &hi2c2, &hspi3) != 0)
   {
-	  //Error_Handler();
+	  Error_Handler();
   }
 
   HAL_TIM_Base_Start_IT(&htim16); //Enable Timer 16 interrupt
@@ -671,7 +671,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		uart_buf_len = sprintf(uart_buf, "New Trame, ID: %.0lf\r\n", nb_trame);
 
 /*------------ STTS751 ------------*/
-/*
 		uint8_t flag;
 	    stts751_flag_busy_get(&stts751_dev_ctx, &flag);
 	    if (flag)
@@ -683,10 +682,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    }
 	    uart_buf_len += sprintf(temp_buf, "STTS751 : %.3f\r\n", stts751_temperature_degC);
 	    strcat(uart_buf, temp_buf);
-*/
 
 /*------------ LPS22HH ------------*/
-/*
 	    lps22hh_read_reg(&lps22hh_dev_ctx, LPS22HH_STATUS, (uint8_t *)&lps22hh_reg, 1);
 	    if (lps22hh_reg.status.p_da)
 	    {
@@ -708,7 +705,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    strcat(uart_buf, temp_buf);
 	    uart_buf_len += sprintf(temp_buf, "LPS22HH : Temperature : %f\r\n", lps22hh_temperature_degC);
 	    strcat(uart_buf, temp_buf);
-*/
 
 /*------------ HTS221 ------------*/
 
@@ -746,32 +742,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	    strcat(uart_buf, temp_buf);
 	    HAL_UART_Transmit(&huart2, uart_buf, uart_buf_len, 100);
 	}
-}
-
-int32_t platform_write(void *handle, uint8_t reg, uint8_t *bufp,
-                              uint16_t len)
-{
-  if (handle == &hi2c2)
-  {
-    //HAL_I2C_Mem_Write(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-	  //HAL_I2C_Mem_Write(handle, LPS22HH_I2C_ADD_H, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-	  reg |= 0x80;
-	  HAL_I2C_Mem_Write(handle, HTS221_I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-  }
-  return 0;
-}
-
-int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
-                             uint16_t len)
-{
-  if (handle == &hi2c2)
-  {
-    //HAL_I2C_Mem_Read(handle, STTS751_0xxxx_ADD_7K5, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-	  //HAL_I2C_Mem_Read(handle, LPS22HH_I2C_ADD_H, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-	  reg |= 0x80;
-	  HAL_I2C_Mem_Read(handle, HTS221_I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
-  }
-  return 0;
 }
 /* USER CODE END 4 */
 

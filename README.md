@@ -2,8 +2,8 @@
 This repo contain all sensors documentation and drivers for STWIN board, based on STM32.
 * Implemented sensors
     * STTS 751 (Temperature)
-    * LPS22HH (Pressure) (doesn't work)
-        * HTS221 (Humidity and Temperature) (doesn't work)
+    * LPS22HH (Pressure)
+    * HTS221 (Humidity and Temperature)
 * TODO
     * SD card saving
     * ISM330DHCX (6-Axis IMU)
